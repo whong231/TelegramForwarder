@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代理设置 - TelegramForwarder</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+        }
+        .sidebar {
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            width: 240px;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            padding: 24px 0;
+        }
+        .sidebar .brand {
+            padding: 0 24px 24px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #58a6ff;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 16px;
+        }
+        .sidebar nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        .sidebar nav a:hover, .sidebar nav a.active { color: #f0f6fc; background: rgba(88,166,255,0.1); }
+        .sidebar nav a .icon { font-size: 18px; width: 24px; text-align: center; }
+        .main { margin-left: 240px; padding: 32px 40px; }
+        .main h2 { font-size: 22px; margin-bottom: 8px; color: #f0f6fc; }
+        .main .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 560px;
+        }
+        .card h3 { font-size: 16px; margin-bottom: 20px; color: #f0f6fc; }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            display: inline-block;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #30363d;
+            border-radius: 26px;
+            transition: 0.2s;
+        }
+        .toggle .slider:before {
+            content: "";
+            position: absolute;
+            height: 20px; width: 20px;
+            left: 3px; bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .toggle input:checked + .slider { background: #238636; }
+        .toggle input:checked + .slider:before { transform: translateX(22px); }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            color: #8b949e;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #c9d1d9;
+            font-size: 14px;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #58a6ff; }
+        .form-group select option { background: #161b22; color: #c9d1d9; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .btn {
+            padding: 10px 24px;
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn:hover { background: #2ea043; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+        .btn-outline:hover { background: #21262d; }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+        }
+        .alert.show { display: block; }
+        .alert-error { background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); color: #f85149; }
+        .alert-success { background: rgba(63,185,80,0.1); border: 1px solid rgba(63,185,80,0.3); color: #3fb950; }
+        .alert-info { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3); color: #58a6ff; }
+        .flex-row { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+        .disabled-overlay { opacity: 0.4; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand">📨 TF Manager</div>
+        <nav>
+            <a href="/admin/dashboard"><span class="icon">🏠</span> 控制台</a>
+            <a href="/admin/setup"><span class="icon">🔑</span> TG 登录</a>
+            <a href="/admin/proxy" class="active"><span class="icon">🌐</span> 代理设置</a>
+            <a href="#" onclick="logout(); return false" style="margin-top:32px;color:#f85149;"><span class="icon">🚪</span> 退出登录</a>
+        </nav>
+    </div>
+    <div class="main">
+        <h2>🌐 代理设置</h2>
+        <p class="subtitle">配置 Telegram 连接代理（SOCKS5 / HTTP）</p>
+
+        <div class="card">
+            <h3>⚙️ 代理配置</h3>
+
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="checkbox" id="proxyEnabled" onchange="toggleProxy()">
+                    <span class="slider"></span>
+                </label>
+                <span style="font-size:14px">启用代理</span>
+            </div>
+
+            <div id="proxyFields" class="disabled-overlay">
+                <div class="form-group">
+                    <label>代理类型</label>
+                    <select id="proxyType">
+                        <option value="socks5">SOCKS5</option>
+                        <option value="http">HTTP</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>代理地址</label>
+                        <input type="text" id="proxyHost" placeholder="127.0.0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>端口</label>
+                        <input type="number" id="proxyPort" placeholder="1080">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>用户名（可选）</label>
+                        <input type="text" id="proxyUsername" placeholder="留空则不使用认证">
+                    </div>
+                    <div class="form-group">
+                        <label>密码（可选）</label>
+                        <input type="password" id="proxyPassword" placeholder="留空则不使用认证">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-row">
+                <button class="btn" id="btnSave" onclick="saveProxy()">💾 保存设置</button>
+                <button class="btn btn-outline" id="btnTest" onclick="testProxy()">🔍 测试连接</button>
+            </div>
+
+            <div class="alert" id="alertMsg"></div>
+        </div>
+    </div>
+
+    <script>
+        function showAlert(msg, type) {
+            const el = document.getElementById('alertMsg');
+            el.textContent = msg;
+            el.className = 'alert alert-' + type + ' show';
+            setTimeout(() => el.classList.remove('show'), 5000);
+        }
+
+        function toggleProxy() {
+            const enabled = document.getElementById('proxyEnabled').checked;
+            const fields = document.getElementById('proxyFields');
+            if (enabled) {
+                fields.classList.remove('disabled-overlay');
+            } else {
+                fields.classList.add('disabled-overlay');
+            }
+        }
+
+        async function loadProxy() {
+            try {
+                const res = await fetch('/api/proxy');
+                const data = await res.json();
+                document.getElementById('proxyEnabled').checked = data.enabled;
+                document.getElementById('proxyType').value = data.proxy_type || 'socks5';
+                document.getElementById('proxyHost').value = data.host || '';
+                document.getElementById('proxyPort').value = data.port || '';
+                document.getElementById('proxyUsername').value = data.username || '';
+                document.getElementById('proxyPassword').value = data.password || '';
+                toggleProxy();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveProxy() {
+            const btn = document.getElementById('btnSave');
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+
+            const data = {
+                enabled: document.getElementById('proxyEnabled').checked,
+                proxy_type: document.getElementById('proxyType').value,
+                host: document.getElementById('proxyHost').value,
+                port: document.getElementById('proxyPort').value,
+                username: document.getElementById('proxyUsername').value,
+                password: document.getElementById('proxyPassword').value,
+            };
+
+            try {
+                const res = await fetch('/api/proxy', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    showAlert('✅ 代理设置已保存', 'success');
+                } else {
+                    showAlert('保存失败: ' + (result.error || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showAlert('网络错误: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 保存设置';
+            }
+        }
+
+        async function testProxy() {
+            const btn = document.getElementById('btnTest');
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+
+            const data = {
+                enabled: true,
+                proxy_type: document.getElementById('proxyType').value,
+                host: document.getElementById('proxyHost').value,
+                port: document.getElementById('proxyPort').value,
+                username: document.getElementById('proxyUsername').value,
+                password: document.getElementById('proxyPassword').value,
+            };
+
+            if (!data.host || !data.port) {
+                showAlert('请填写代理地址和端口', 'error');
+                btn.disabled = false;
+                btn.textContent = '🔍 测试连接';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/proxy/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.ok) {
+                    showAlert('✅ ' + result.message, 'success');
+                } else {
+                    showAlert('❌ ' + result.error, 'error');
+                }
+            } catch (e) {
+                showAlert('网络错误: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 测试连接';
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/admin';
+        }
+
+        loadProxy();
+    </script>
+</body>
+</html>
