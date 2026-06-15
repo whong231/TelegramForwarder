@@ -1,0 +1,26 @@
+services:
+  telegram-forwarder:
+    image: telegram-forwarder-webui:latest
+    build: .
+    container_name: telegram-forwarder
+    ports:
+      - "9804:8000"   # RSS
+      - "9805:9805"   # Web 管理后台
+    restart: unless-stopped
+    volumes:
+      - ./db:/app/db
+      - ./.env:/app/.env
+      - ./logs:/app/logs
+      - ./sessions:/app/sessions
+      - ./temp:/app/temp
+      - ./config:/app/config
+      - ./rss/data:/app/rss/data
+      - ./rss/media:/app/rss/media
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    stdin_open: true
+    tty: true
